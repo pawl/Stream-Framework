@@ -16,7 +16,8 @@ class RedisActivityStorage(BaseActivityStorage):
 
     def get_cache(self):
         key = self.get_key()
-        return ActivityCache(key)
+        redis_settings = self.options.get('STREAM_REDIS_CONFIG')
+        return ActivityCache(key, redis_settings=redis_settings)
 
     def get_from_storage(self, activity_ids, *args, **kwargs):
         cache = self.get_cache()

@@ -111,16 +111,17 @@ class BaseFeed(object):
     filtering_supported = False
     ordering_supported = False
 
-    def __init__(self, user_id):
+    def __init__(self, user_id, options=None):
         '''
         :param user_id: the id of the user who's feed we're working on
+        :param options: contains options used by connection
         '''
         self.user_id = user_id
         self.key_format = self.key_format
         self.key = self.key_format % {'user_id': self.user_id}
 
-        self.timeline_storage = self.get_timeline_storage()
-        self.activity_storage = self.get_activity_storage()
+        self.timeline_storage = self.get_timeline_storage(options)
+        self.activity_storage = self.get_activity_storage(options)
 
         # ability to filter and change ordering (not supported for all
         # backends)
@@ -138,59 +139,71 @@ class BaseFeed(object):
         return options
 
     @classmethod
-    def get_timeline_storage(cls):
+    def get_timeline_storage(cls, options=None):
         '''
         Returns an instance of the timeline storage
+
+        :param options: contains options used by connection
         '''
-        options = cls.get_timeline_storage_options()
-        timeline_storage = cls.timeline_storage_class(**options)
+        all_options = cls.get_timeline_storage_options()
+        all_options['options'] = options
+        timeline_storage = cls.timeline_storage_class(**all_options)
         return timeline_storage
 
     @classmethod
-    def get_activity_storage(cls):
+    def get_activity_storage(cls, options=None):
         '''
         Returns an instance of the activity storage
+
+        :param options: contains options used by connection
         '''
         options = {}
         options['serializer_class'] = cls.activity_serializer
         options['activity_class'] = cls.activity_class
+        options['options'] = options
         if cls.activity_storage_class is not None:
             activity_storage = cls.activity_storage_class(**options)
             return activity_storage
 
     @classmethod
-    def insert_activities(cls, activities, **kwargs):
+    def insert_activities(cls, activities, options=None, **kwargs):
         '''
         Inserts an activity to the activity storage
 
         :param activity: the activity class
+        :param options: contains options used by connection
         '''
-        activity_storage = cls.get_activity_storage()
+        activity_storage = cls.get_activity_storage(options)
         if activity_storage:
             activity_storage.add_many(activities)
 
     @classmethod
-    def insert_activity(cls, activity, **kwargs):
+    def insert_activity(cls, activity, options=None, **kwargs):
         '''
         Inserts an activity to the activity storage
 
         :param activity: the activity class
+        :param options: contains options used by connection
         '''
-        cls.insert_activities([activity])
+        cls.insert_activities([activity], options)
 
     @classmethod
-    def remove_activity(cls, activity, **kwargs):
+    def remove_activity(cls, activity, options=None, **kwargs):
         '''
         Removes an activity from the activity storage
 
         :param activity: the activity class or an activity id
+        :param options: contains options used by connection
         '''
-        activity_storage = cls.get_activity_storage()
+        activity_storage = cls.get_activity_storage(options)
         activity_storage.remove(activity)
 
     @classmethod
-    def get_timeline_batch_interface(cls):
-        timeline_storage = cls.get_timeline_storage()
+    def get_timeline_batch_interface(cls, options=None):
+        '''
+        :param options: contains options used by connection
+        '''
+        timeline_storage = cls.get_timeline_storage(options)
         return timeline_storage.get_batch_interface()
 
     def add(self, activity, *args, **kwargs):
@@ -262,9 +275,12 @@ class BaseFeed(object):
         return self.timeline_storage.delete(self.key)
 
     @classmethod
-    def flush(cls):
-        activity_storage = cls.get_activity_storage()
-        timeline_storage = cls.get_timeline_storage()
+    def flush(cls, options=None):
+        '''
+        :param options: contains options used by connection
+        '''
+        activity_storage = cls.get_activity_storage(options)
+        timeline_storage = cls.get_timeline_storage(options)
         activity_storage.flush()
         timeline_storage.flush()
 

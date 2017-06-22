@@ -14,7 +14,12 @@ class RedisTimelineStorage(BaseTimelineStorage):
 
     def get_cache(self, key):
         redis_server = self.options.get('redis_server', 'default')
-        cache = TimelineCache(key, redis_server=redis_server)
+        redis_settings = self.options.get('STREAM_REDIS_CONFIG')
+        cache = TimelineCache(
+            key,
+            redis_server=redis_server,
+            redis_settings=redis_settings,
+        )
         return cache
 
     def contains(self, key, activity_id):
@@ -88,7 +93,8 @@ class RedisTimelineStorage(BaseTimelineStorage):
 
     def get_batch_interface(self):
         return get_redis_connection(
-            server_name=self.options.get('redis_server', 'default')
+            server_name=self.options.get('redis_server', 'default'),
+            redis_settings=self.options.get('STREAM_REDIS_CONFIG'),
         ).pipeline(transaction=False)
 
     def get_index_of(self, key, activity_id):

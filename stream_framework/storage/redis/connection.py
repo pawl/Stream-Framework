@@ -4,26 +4,29 @@ from stream_framework import settings
 connection_pool = None
 
 
-def get_redis_connection(server_name='default'):
+def get_redis_connection(server_name='default', redis_settings=None):
     '''
     Gets the specified redis connection
     '''
     global connection_pool
 
     if connection_pool is None:
-        connection_pool = setup_redis()
+        connection_pool = setup_redis(redis_settings)
 
     pool = connection_pool[server_name]
 
     return redis.StrictRedis(connection_pool=pool)
 
 
-def setup_redis():
+def setup_redis(redis_settings=None):
     '''
     Starts the connection pool for all configured redis servers
     '''
+    if redis_settings is None:
+        redis_settings = settings.STREAM_REDIS_CONFIG
+
     pools = {}
-    for name, config in settings.STREAM_REDIS_CONFIG.items():
+    for name, config in redis_settings.items():
         pool = redis.ConnectionPool(
             host=config['host'],
             port=config['port'],

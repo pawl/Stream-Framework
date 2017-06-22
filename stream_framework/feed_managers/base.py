@@ -110,6 +110,12 @@ class Manager(object):
 
     metrics = get_metrics_instance()
 
+    def __init__(self, options=None):
+        '''
+        :param options: contains settings used by connection
+        '''
+        self.options = options
+
     def get_user_follower_ids(self, user_id):
         '''
         Returns a dict of users ids which follow the given user grouped by
@@ -135,7 +141,7 @@ class Manager(object):
         :param activity: the activity which to add
         '''
         # add into the global activity cache (if we are using it)
-        self.user_feed_class.insert_activity(activity)
+        self.user_feed_class.insert_activity(activity, self.options)
         # now add to the user's personal feed
         user_feed = self.get_user_feed(user_id)
         user_feed.add(activity)
@@ -186,7 +192,7 @@ class Manager(object):
 
         :returns dict: a dictionary with the feeds we're pushing to
         '''
-        return dict([(k, feed(user_id)) for k, feed in self.feed_classes.items()])
+        return dict([(k, feed(user_id, self.options)) for k, feed in self.feed_classes.items()])
 
     def get_user_feed(self, user_id):
         '''
@@ -194,7 +200,7 @@ class Manager(object):
 
         :param user_id: the id of the user
         '''
-        return self.user_feed_class(user_id)
+        return self.user_feed_class(user_id, self.options)
 
     def update_user_activities(self, activities):
         '''
@@ -346,14 +352,14 @@ class Manager(object):
         with self.metrics.fanout_timer(feed_class):
             separator = '===' * 10
             logger.info('%s starting fanout %s', separator, separator)
-            batch_context_manager = feed_class.get_timeline_batch_interface()
+            batch_context_manager = feed_class.get_timeline_batch_interface(self.options)
             msg_format = 'starting batch interface for feed %s, fanning out to %s users'
             with batch_context_manager as batch_interface:
                 logger.info(msg_format, feed_class, len(user_ids))
                 operation_kwargs['batch_interface'] = batch_interface
                 for user_id in user_ids:
                     logger.debug('now handling fanout to user %s', user_id)
-                    feed = feed_class(user_id)
+                    feed = feed_class(user_id, self.options)
                     operation(feed, **operation_kwargs)
             logger.info('finished fanout for feed %s', feed_class)
         fanout_count = len(operation_kwargs['activities']) * len(user_ids)
@@ -391,7 +397,7 @@ class Manager(object):
 
         for index, activity_chunk in enumerate(activity_chunks):
             # first insert into the global activity storage
-            self.user_feed_class.insert_activities(activity_chunk)
+            self.user_feed_class.insert_activities(activity_chunk, self.options)
             logger.info(
                 'inserted chunk %s (length %s) into the global activity store', index, len(activity_chunk))
             # next add the activities to the users personal timeline
